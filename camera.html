@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>ascii</title>
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        background: #000;
+        color: #d8eaf2;
+        font-family: "Courier New", monospace;
+        overflow: hidden;
+      }
+      /* Ensure pre displays and preserves newlines exactly */
+      pre#ascii {
+        box-sizing: border-box;
+        display: block;
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0.5rem;
+        white-space: pre; /* preserve line breaks exactly */
+        letter-spacing: 0;
+        font-size: 10px; /* conservative size for consistent measuring */
+        overflow: hidden;
+      }
+      video,
+      canvas {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <pre id="ascii">Starting camera…</pre>
+    <video id="video" autoplay playsinline muted></video>
+    <canvas id="canvas"></canvas>
+
+    <script>
+      (async function () {
+        const ascii = document.getElementById("ascii");
+        const video = document.getElementById("video");
+        const canvas = document.getElementById("canvas");
+        const ctx = canvas.getContext("2d");
+
+        // ASCII ramp - darkest to brightest
+        const ramp = " .:-=+*#%@";
+
+        // request camera
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+            audio: false,
+          });
+          video.srcObject = stream;
+          // wait until the video has some metadata so videoWidth/videoHeight are available
+          await new Promise((resolve) => {
+            if (video.readyState >= 2) return resolve();
+            video.addEventListener("loadedmetadata", resolve, { once: true });
+          });
+          // ensure playback started
+          try {
+            await video.play();
+          } catch (e) {
+            /* autoplay policies — video may already be playing */
+          }
+        } catch (err) {
+          ascii.textContent =
+            "Camera access denied or not available.\n" +
+            (err && err.message ? err.message : "");
+          return;
+        }
+
+        // luminance helper
+        function luminance(r, g, b) {
+          return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        }
+
+        // measure one character's size (monospace)
+        function measureChar() {
+          const span = document.createElement("span");
+          span.textContent = "M";
+          span.style.fontFamily = getComputedStyle(ascii).fontFamily;
+          span.style.fontSize = getComputedStyle(ascii).fontSize;
+          span.style.visibility = "hidden";
+          document.body.appendChild(span);
+          const rect = span.getBoundingClientRect();
+          span.remove();
+          // guard against zero sizes
+          return { w: Math.max(rect.width, 6), h: Math.max(rect.height, 8) };
+        }
+
+        // main render loop
+        function renderLoop() {
+          // measure character each frame to be robust to style changes or zoom
+          const char = measureChar();
+
+          // compute grid dimensions based on visible window
+          let cols = Math.floor((window.innerWidth - 1) / char.w);
+          let rows = Math.floor((window.innerHeight - 1) / char.h);
+
+          // ensure sensible minimums
+          cols = Math.max(8, cols);
+          rows = Math.max(6, rows);
+
+          // set canvas to sample resolution (one pixel per ASCII character)
+          if (canvas.width !== cols || canvas.height !== rows) {
+            canvas.width = cols;
+            canvas.height = rows;
+          }
+
+          // draw current frame scaled down into canvas
+          // sometimes videoWidth/Height are 0 briefly — guard against that
+          const vW = video.videoWidth || 640;
+          const vH = video.videoHeight || 480;
+
+          try {
+            ctx.save();
+            ctx.scale(-1, 1);
+            ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
+            ctx.restore();
+          } catch (e) {
+            // drawImage can throw if video not ready; skip this frame gracefully
+            requestAnimationFrame(renderLoop);
+            return;
+          }
+
+          // read pixel data and build ASCII string row by row
+          const img = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+          let out = "";
+          for (let y = 0; y < canvas.height; y++) {
+            for (let x = 0; x < canvas.width; x++) {
+              const i = (y * canvas.width + x) * 4;
+              const r = img[i],
+                g = img[i + 1],
+                b = img[i + 2];
+              const lum = luminance(r, g, b) / 255; // 0..1
+              // optional gamma/contrast tweak to make darks darker
+              const v = Math.pow(lum, 0.9);
+              const idx = Math.max(
+                0,
+                Math.min(ramp.length - 1, Math.floor(v * (ramp.length - 1)))
+              );
+              // use space for the darkest value to create true black holes
+              out += idx === 0 ? " " : ramp[idx];
+            }
+            out += "\n";
+          }
+
+          ascii.textContent = out;
+
+          requestAnimationFrame(renderLoop);
+        }
+
+        // start render loop after a short delay to allow camera warm-up
+        setTimeout(() => requestAnimationFrame(renderLoop), 60);
+
+        // update on resize so the next frame will use fresh cols/rows
+        window.addEventListener("resize", () => {});
+      })();
+    </script>
+  </body>
+</html>

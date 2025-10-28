@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>ascii</title>
+    <style>
+      html,
+      body {
+        height: 100%;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+        background: #071018;
+        color: #d8eaf2;
+        font-family: "Courier New", Courier, monospace;
+      }
+      .wrap {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        width: 100%;
+        box-sizing: border-box;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <pre id="screen"></pre>
+    </div>
+
+    <script>
+      // Small value-noise generator (coherent, cheap). Uses smooth interpolation of pseudo-random grid values.
+      function hash2(ix, iy) {
+        // integer hash -> pseudo random in [0,1)
+        let h = ix * 374761393 + iy * 668265263; // large primes
+        h = (h ^ (h >>> 13)) * 1274126177;
+        return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+      }
+
+      function fade(t) {
+        return t * t * t * (t * (t * 6 - 15) + 10);
+      } // 6t^5 -15t^4 +10t^3
+
+      function valueNoise2(x, y) {
+        const xi = Math.floor(x),
+          yi = Math.floor(y);
+        const xf = x - xi,
+          yf = y - yi;
+
+        const v00 = hash2(xi, yi);
+        const v10 = hash2(xi + 1, yi);
+        const v01 = hash2(xi, yi + 1);
+        const v11 = hash2(xi + 1, yi + 1);
+
+        const u = fade(xf);
+        const v = fade(yf);
+
+        const ix0 = v00 * (1 - u) + v10 * u;
+        const ix1 = v01 * (1 - u) + v11 * u;
+        return ix0 * (1 - v) + ix1 * v; // result in [0,1)
+      }
+
+      // Fractal Brownian Motion wrapper for richer terrain
+      function fbm(x, y, octaves, lacunarity, gain) {
+        let amp = 1,
+          freq = 1,
+          sum = 0,
+          max = 0;
+        for (let i = 0; i < octaves; i++) {
+          sum += (valueNoise2(x * freq, y * freq) - 0.5) * amp; // center around 0
+          max += amp;
+          amp *= gain;
+          freq *= lacunarity;
+        }
+        return sum / max; // roughly in [-0.5,0.5]
+      }
+
+      // Map noise value to ASCII ramp
+      const ramp = " .:-=+*#%@"; // low->high elevation
+
+      const pre = document.getElementById("screen");
+
+      // measure character size by creating a temporary span
+      function measureChar() {
+        const span = document.createElement("span");
+        span.style.fontFamily = getComputedStyle(pre).fontFamily;
+        span.style.fontSize = getComputedStyle(pre).fontSize;
+        span.style.visibility = "hidden";
+        span.textContent = "M";
+        document.body.appendChild(span);
+        const rect = span.getBoundingClientRect();
+        document.body.removeChild(span);
+        return { w: rect.width, h: rect.height };
+      }
+
+      let cols = 80,
+        rows = 30; // defaults
+      let charSize = measureChar();
+
+      function resizeGrid() {
+        charSize = measureChar();
+        cols = Math.max(10, Math.floor(window.innerWidth / charSize.w));
+        rows = Math.max(
+          6,
+          Math.floor((window.innerHeight - 40) / (charSize.h * 0.9))
+        );
+      }
+
+      window.addEventListener("resize", resizeGrid);
+      resizeGrid();
+
+      // animation params
+      let z = 0;
+      let speed = 0.015; // base z increment
+      let paused = false;
+      let mouseX = 0.5,
+        mouseY = 0.5;
+
+      window.addEventListener("mousemove", (e) => {
+        mouseX = e.clientX / window.innerWidth;
+        mouseY = e.clientY / window.innerHeight;
+      });
+
+      window.addEventListener("keydown", (e) => {
+        if (e.code === "Space") {
+          paused = !paused;
+        }
+      });
+
+      function renderFrame() {
+        if (!paused) z += speed;
+
+        // frequency modulated by mouseX, amplitude by mouseY
+        const baseFreq = 0.035 + mouseX * 0.09; // spatial frequency
+        const octaves = 4;
+        const lacunarity = 2.0;
+        const gain = 0.5 + mouseY * 0.4;
+
+        // build rows
+        let out = "";
+        for (let y = 0; y < rows; y++) {
+          let row = "";
+          for (let x = 0; x < cols; x++) {
+            // sample coordinates so aspect ratio of characters is accounted for
+            const nx = x / cols;
+            const ny = y / rows;
+            const sample =
+              fbm(
+                (nx - 0.5) / baseFreq,
+                (ny - 0.5) / (baseFreq * (charSize.h / charSize.w)),
+                octaves,
+                lacunarity,
+                gain
+              ) +
+              Math.sin((nx * 10 + z * 0.2) * 0.8) * 0.02;
+            // sample in [-~0.6, ~0.6] center at 0
+            // convert to 0..1
+            const v = (sample + 0.6) / 1.2;
+            const idx = Math.max(
+              0,
+              Math.min(ramp.length - 1, Math.floor(v * ramp.length))
+            );
+            row += ramp.charAt(idx);
+          }
+          out += row + "\n";
+        }
+
+        pre.textContent = out;
+        requestAnimationFrame(renderFrame);
+      }
+
+      // kick off
+      requestAnimationFrame(renderFrame);
+    </script>
+  </body>
+</html>

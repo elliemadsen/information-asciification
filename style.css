@@ -1,0 +1,103 @@
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background-color: black;
+  color: white;
+  font-family: "Courier New", monospace;
+  font-size: medium;
+  overflow: hidden;
+}
+
+/* ---- Container positioning ---- */
+.container {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  width: var(--w);
+  height: var(--h);
+  display: block;
+  text-align: center;
+}
+
+.container img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain; /* maintain aspect ratio, fit entirely within */
+  display: block; /* remove default inline spacing */
+}
+
+/* ---- Text styling ---- */
+pre {
+  white-space: pre-wrap;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* ---- Link styling ---- */
+a {
+  color: white;
+}
+
+a:hover {
+  color: #909090;
+}
+
+.align-left {
+  text-align: left;
+}
+
+.align-right {
+  text-align: right;
+}
+
+.align-justify {
+  text-align: justify;
+}
+
+.small-text {
+  font-size: small;
+}
+
+.bottom-left {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+}
+
+.flexbox {
+  display: flex;
+  justify-content: space-between;
+  margin: 20px;
+}
+
+.grey-text {
+  color: grey;
+}
+
+pre {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  white-space: pre;
+  margin: 0;
+  padding: 0;
+  line-height: 1;
+}
+
+#left-animation {
+  left: 0;
+  width: 30%;
+  font-size: 10px;
+  color: grey;
+}
+
+#right-animation {
+  left: 70%;
+  width: 30%;
+  color: grey;
+}

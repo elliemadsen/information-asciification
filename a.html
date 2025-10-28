@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>ascii</title>
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        background: #000;
+        color: #d8eaf2;
+        font-family: monospace, "Courier New", monospace;
+        overflow: hidden;
+      }
+      pre {
+        margin: 0;
+        white-space: pre;
+        letter-spacing: 0;
+        font-size: 11px;
+        display: block;
+        width: 100%;
+        height: 100%;
+        box-sizing: border-box;
+        padding: 0;
+      }
+      .center-text {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        white-space: nowrap;
+      }
+      a {
+        color: white;
+      }
+
+      a:hover {
+        color: #909090;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="center-text">
+      <a href="terminal.html">ascii art</a>
+    </div>
+    <pre id="screen"></pre>
+    <script>
+      (function () {
+        const pre = document.getElementById("screen");
+        const palette = " .~-^~=*#%e@";
+        let t = 0;
+        const speed = 0.015;
+
+        function measureChar() {
+          const span = document.createElement("span");
+          span.textContent = "M";
+          span.style.visibility = "hidden";
+          span.style.fontFamily = getComputedStyle(pre).fontFamily;
+          span.style.fontSize = getComputedStyle(pre).fontSize;
+          document.body.appendChild(span);
+          const r = span.getBoundingClientRect();
+          span.remove();
+          return { w: Math.max(r.width, 6), h: Math.max(r.height, 8) };
+        }
+
+        function computeGrid() {
+          const c = measureChar();
+          const cols = Math.max(10, Math.floor(window.innerWidth / c.w));
+          const rows = Math.max(
+            6,
+            Math.floor(window.innerHeight / (c.h * 0.92))
+          );
+          return { cols, rows };
+        }
+
+        let grid = computeGrid();
+        window.addEventListener("resize", () => {
+          grid = computeGrid();
+        });
+
+        function render() {
+          t += speed;
+          const { cols, rows } = grid;
+          const cx = cols / 2,
+            cy = rows / 2;
+          let out = "";
+
+          for (let y = 0; y < rows; y++) {
+            for (let x = 0; x < cols; x++) {
+              const dx = (x - cx) / cols;
+              const dy = (y - cy) / rows;
+              const dist = Math.sqrt(dx * dx + dy * dy);
+
+              // wave pattern
+              const wave =
+                0.3 * Math.sin(dist * 12 - t * 2) +
+                0.4 * Math.sin(dist * 8 - t * 1.5);
+
+              // map wave to palette
+              let val = (wave + 0.7) / 1.4;
+
+              // create a black center region dynamically based on distance
+              if (dist < 0.25) {
+                out += " "; // blank/black center
+              } else {
+                val = Math.max(0, Math.min(1, val));
+                const idx = Math.floor(val * (palette.length - 1));
+                out += palette[idx];
+              }
+            }
+            out += "\n";
+          }
+
+          pre.textContent = out;
+          requestAnimationFrame(render);
+        }
+
+        requestAnimationFrame(render);
+      })();
+    </script>
+  </body>
+</html>

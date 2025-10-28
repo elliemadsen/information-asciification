@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ASCII Waves</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        background: black;
+        color: white;
+        overflow: hidden;
+        height: 100%;
+        width: 100%;
+        font-family: monospace;
+      }
+
+      #ascii {
+        position: absolute;
+        top: 0;
+        left: 0;
+        white-space: pre;
+        font-size: 10px;
+        line-height: 10px;
+        color: white;
+        opacity: 0.5;
+      }
+      a {
+        color: white;
+      }
+
+      a:hover {
+        color: #909090;
+      }
+      .text-block {
+        position: absolute;
+        background: black;
+        color: white;
+        padding: 12px 24px;
+        font-size: 1.2rem;
+        text-align: center;
+        z-index: 10;
+      }
+
+      .t1 {
+        top: 20%;
+        left: 25%;
+      }
+      .t2 {
+        top: 50%;
+        left: 60%;
+      }
+      .t3 {
+        top: 75%;
+        left: 35%;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="ascii"></div>
+
+    <div class="text-block t1">
+      <a href="vectorraster.html">bitmapped worlds && ascii topography</a>
+    </div>
+    <div class="text-block t2">information richness</div>
+    <div class="text-block t3">
+      <a href="me.html">ellie madsen</a>
+    </div>
+
+    <script>
+      const chars = [".", ",", ":", ";", "*", "+", "=", "-", "~", "^"];
+      const div = document.getElementById("ascii");
+      let width, height, cols, rows;
+
+      function resize() {
+        const charWidth = 6; // approximate width of monospace char in px
+        const charHeight = 10; // line height
+        width = window.innerWidth;
+        height = window.innerHeight;
+        cols = Math.floor(width / charWidth);
+        rows = Math.floor(height / charHeight);
+      }
+
+      window.addEventListener("resize", resize);
+      resize();
+
+      let t = 0;
+      function draw() {
+        let frame = "";
+        for (let y = 0; y < rows; y++) {
+          for (let x = 0; x < cols; x++) {
+            const wave =
+              Math.sin(x / 8 + t / 10) +
+              Math.sin(y / 5 + t / 15) +
+              Math.sin((x + y) / 10 - t / 8);
+            const char =
+              chars[Math.floor(((wave + 3) / 6) * (chars.length - 1))];
+            frame += char;
+          }
+          frame += "\n";
+        }
+        div.textContent = frame;
+        t += 0.3;
+        requestAnimationFrame(draw);
+      }
+      draw();
+    </script>
+  </body>
+</html>
